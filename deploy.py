@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os
 import subprocess
 import random
+import json
 
 # Cargar las variables desde el archivo .env
 load_dotenv()
@@ -30,10 +31,33 @@ SERVICE_PRINCIPAL_NAME = "universidad"
 USER_NAME = subprocess.run(["az", "ad", "sp", "list", "--display-name", SERVICE_PRINCIPAL_NAME, "--query", "[].appId", "--output", "tsv"], capture_output=True, text=True).stdout.strip()
 PASSWORD = subprocess.run(["az", "ad", "sp", "create-for-rbac", "--name", SERVICE_PRINCIPAL_NAME, "--scopes", ACR_REGISTRY_ID, "--role", "acrpull", "--query", "password", "--output", "tsv"], capture_output=True, text=True).stdout.strip()
 
-
-# Construir, Etiquetar y Publicar la Imagen Docker
+# Construir y Etiquetar la Imagen Docker
 subprocess.run(["docker", "build", "-t", f"{IMAGE_NAME}:{IMAGE_TAG}", "."])
 subprocess.run(["docker", "tag", f"{IMAGE_NAME}:{IMAGE_TAG}", f"{ACR_NAME}.azurecr.io/{IMAGE_NAME}:{IMAGE_TAG}"])
+
+# Analizar la imagen con Grype
+print("Analizando la imagen en busca de vulnerabilidades con Grype...")
+grype_result = subprocess.run(["grype", f"{IMAGE_NAME}:{IMAGE_TAG}", "-o", "json"], capture_output=True, text=True)
+grype_data = json.loads(grype_result.stdout)
+
+# Verificar si hay vulnerabilidades críticas, altas o medias
+severities_of_interest = {"Critical", "High", "Medium"}
+found_vulnerabilities = False
+
+for match in grype_data.get("matches", []):
+    severity = match["vulnerability"]["severity"]
+    if severity in severities_of_interest:
+        print(f"Vulnerabilidad encontrada: {match['vulnerability']['id']} con severidad {severity}")
+        found_vulnerabilities = True
+
+# Preguntar si continuar si hay vulnerabilidades de interés
+if found_vulnerabilities:
+    user_input = input("Se han encontrado vulnerabilidades críticas, altas o medias. ¿Deseas subir la imagen de todos modos? (s/n): ")
+    if user_input.lower() != 's':
+        print("Subida de imagen cancelada debido a vulnerabilidades.")
+        exit()
+
+# Publicar la Imagen Docker solo si no se canceló
 subprocess.run(["docker", "push", f"{ACR_NAME}.azurecr.io/{IMAGE_NAME}:{IMAGE_TAG}"])
 
 # Listar Repositorios en ACR
