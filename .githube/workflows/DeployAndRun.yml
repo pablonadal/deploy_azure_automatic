@@ -24,8 +24,8 @@ jobs:
         username: ${{ secrets.REGISTRY_USERNAME }}
         password: ${{ secrets.REGISTRY_PASSWORD }}
     - run: |
-        docker build . -t ${{ secrets.ACR_NAME_URL }}/${{env.REPO_NAME}}:${{ github.sha }}
-        docker push ${{ secrets.ACR_NAME_URL }}/${{env.REPO_NAME}}:${{ github.sha }}
+        docker build . -t ${{ secrets.ACR_NAME_URL }}/${{ env.REPO_NAME }}:${{ github.sha }}
+        docker push ${{ secrets.ACR_NAME_URL }}/${{ env.REPO_NAME }}:${{ github.sha }}
 
   deploy:
     needs: build
@@ -39,13 +39,13 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
     
-    - name: 'deploy Container Instance'
+    - name: 'Deploy Container Instance'
       uses: azure/aci-deploy@v1
       with:
         location: eastus
         name: menu-hola-mundo-aci
         resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
-        image: ${{ secrets.ACR_NAME_URL }}/${{env.REPO_NAME}}:${{ github.sha }}
+        image: ${{ secrets.ACR_NAME_URL }}/${{ env.REPO_NAME }}:${{ github.sha }}
         dns-name-label: menu-hola-mundo-aci-${{ github.run_id }}-${{ github.run_attempt }}
         registry-username: ${{ secrets.REGISTRY_USERNAME }}
         registry-password: ${{ secrets.REGISTRY_PASSWORD }}
@@ -53,7 +53,6 @@ jobs:
         cpu: 1
         memory: 1
     
-    - name: 'logout'
+    - name: 'Logout'
       run: |
         az logout
-      
